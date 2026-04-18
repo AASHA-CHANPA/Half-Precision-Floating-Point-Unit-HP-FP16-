@@ -1,0 +1,546 @@
+﻿FP16 Adder and Multiplier Using Verilog HDL
+
+
+CODE :-
+`timescale 1ns / 1ps
+module hp_class(
+    input  [15:0] a,
+    output snan, qnan, infinity, zero, subnormal, normal,
+    output signed [6:0] exp,
+    output [10:0] sig
+);
+    wire sign = a[15];
+    wire [4:0] exponent = a[14:10];
+    wire [9:0] fraction = a[9:0];
+
+
+    assign snan      = (exponent == 5'b11111) && (fraction[9] == 1'b0) && (fraction != 0);
+    assign qnan      = (exponent == 5'b11111) && (fraction[9] == 1'b1);
+    assign infinity  = (exponent == 5'b11111) && (fraction == 0);
+    assign zero      = (exponent == 0)       && (fraction == 0);
+    assign subnormal = (exponent == 0)       && (fraction != 0);
+    assign normal    = (exponent != 0)       && (exponent != 5'b11111);
+
+
+    assign exp = (exponent == 0) ? -(14) : (exponent - 15);
+
+
+    assign sig = (exponent == 0) ? {1'b0, fraction} : {1'b1, fraction};
+
+
+endmodule
+
+
+
+
+module hp_mul(a, b, p, snan, qnan, infinity, zero, subnormal, normal);
+  input [15:0] a, b;
+  output [15:0] p;
+  output snan, qnan, infinity, zero, subnormal, normal;
+  reg snan, qnan, infinity, zero, subnormal, normal;
+   
+  wire aSnan, aQnan, aInfinity, aZero, aSubnormal, aNormal;
+  wire bSnan, bQnan, bInfinity, bZero, bSubnormal, bNormal;
+
+
+  wire signed [6:0] aExp, bExp;
+  reg signed [6:0] pExp, t1Exp, t2Exp;
+  wire [10:0] aSig, bSig;
+  reg [10:0] pSig, tSig;
+
+
+  reg [15:0] pTmp;
+ 
+  wire [21:0] rawSignificand;
+  reg pSign;
+ 
+  hp_class aClass(a, aSnan, aQnan, aInfinity, aZero, aSubnormal, aNormal, aExp, aSig);
+  hp_class bClass(b, bSnan, bQnan, bInfinity, bZero, bSubnormal, bNormal, bExp, bSig);
+ 
+  assign rawSignificand = aSig * bSig;
+
+
+  always @(*) begin
+    pSign = a[15] ^ b[15];
+    pTmp = {pSign, {5{1'b1}}, 1'b0, {9{1'b1}}};
+    {snan, qnan, infinity, zero, subnormal, normal} = 6'b0;
+   
+    if (aSnan | bSnan) begin
+      pTmp = aSnan ? a : b;  snan = 1;
+    end
+    else if (aQnan | bQnan) begin
+      pTmp = aQnan ? a : b;  qnan = 1;
+    end
+    else if (aInfinity | bInfinity) begin
+      if (aZero | bZero) begin
+        pTmp = {pSign, 5'b11111, 1'b1, 9'h2A};
+        qnan = 1;
+      end else begin
+        pTmp = {pSign, 5'b11111, 10'b0};
+        infinity = 1;
+      end
+    end
+    else if (aZero | bZero || (aSubnormal & bSubnormal)) begin
+      pTmp = {pSign, 15'b0};
+      zero = 1;
+    end
+    else begin
+      t1Exp = aExp + bExp;
+
+
+      if (rawSignificand[21]) begin
+        tSig = rawSignificand[21:11];
+        t2Exp = t1Exp + 1;
+      end else begin
+        tSig = rawSignificand[20:10];
+        t2Exp = t1Exp;
+      end
+
+
+      if (t2Exp < -24) begin
+        pTmp = {pSign, 15'b0}; zero = 1;
+      end
+      else if (t2Exp < -14) begin
+        pSig = tSig >> (-14 - t2Exp);
+        pTmp = {pSign, 5'b0, pSig[9:0]};
+        subnormal = 1;
+      end
+      else if (t2Exp > 15) begin
+        pTmp = {pSign, 5'b11111, 10'b0};
+        infinity = 1;
+      end
+      else begin
+        pExp = t2Exp + 15;
+        pSig = tSig;
+        pTmp = {pSign, pExp[4:0], pSig[9:0]};
+        normal = 1;
+      end
+    end
+  end
+ 
+  assign p = pTmp;
+
+
+endmodule
+
+
+
+
+module display32_hex (
+    input  wire  clk,   // 100 MHz
+    input  wire [31:0] value,      
+    output reg  [6:0]  seg,          
+    output reg  [7:0]  AN,  // anodes (active LOW)
+    output wire DP  // decimal point
+);
+    parameter integer CLK_FREQ_HZ   = 100_000_000;
+    parameter integer REFRESH_HZ    = 1000;
+
+
+    localparam integer DIVIDER = CLK_FREQ_HZ / (REFRESH_HZ * 8);
+    localparam integer CNTW = $clog2(DIVIDER > 0 ? DIVIDER : 1);
+
+
+    reg [CNTW-1:0] clk_cnt = 0;
+    reg [2:0] digit_idx = 0;
+
+
+    reg [3:0] nibble;
+
+
+    function [6:0] hex7;
+        input [3:0] h;
+        begin
+            case(h)
+                4'h0: hex7 = 7'b1000000;
+                4'h1: hex7 = 7'b1111001;
+                4'h2: hex7 = 7'b0100100;
+                4'h3: hex7 = 7'b0110000;
+                4'h4: hex7 = 7'b0011001;
+                4'h5: hex7 = 7'b0010010;
+                4'h6: hex7 = 7'b0000010;
+                4'h7: hex7 = 7'b1111000;
+                4'h8: hex7 = 7'b0000000;
+                4'h9: hex7 = 7'b0010000;
+                4'hA: hex7 = 7'b0001000;
+                4'hB: hex7 = 7'b0000011;
+                4'hC: hex7 = 7'b1000110;
+                4'hD: hex7 = 7'b0100001;
+                4'hE: hex7 = 7'b0000110;
+                4'hF: hex7 = 7'b0001110;
+            endcase
+        end
+    endfunction
+
+
+    assign DP = 1'b1; // DP off
+
+
+    always @(posedge clk) begin
+        if (DIVIDER <= 1) begin
+            clk_cnt   <= 0;
+            digit_idx <= digit_idx + 1;
+        end else begin
+            if (clk_cnt == DIVIDER-1) begin
+                clk_cnt   <= 0;
+                digit_idx <= digit_idx + 1;
+            end else begin
+                clk_cnt <= clk_cnt + 1;
+            end
+        end
+    end
+
+
+    always @(*) begin
+        case (digit_idx)
+            3'd0: nibble = value[31:28];
+            3'd1: nibble = value[27:24];
+            3'd2: nibble = value[23:20];
+            3'd3: nibble = value[19:16];
+            3'd4: nibble = value[15:12];
+            3'd5: nibble = value[11:8];
+            3'd6: nibble = value[7:4];
+            3'd7: nibble = value[3:0];
+            default: nibble = 4'h0;
+        endcase
+    end
+
+
+    always @(*) begin
+        seg = hex7(nibble);
+        AN  = 8'b11111111;
+        AN[7-digit_idx] = 1'b0;
+    end
+endmodule
+
+
+module hp_add(
+    input  [15:0] a,
+    input  [15:0] b,
+    output [15:0] s,
+    output snan, qnan, infinity, zero, subnormal, normal
+);
+    reg snan, qnan, infinity, zero, subnormal, normal;
+
+
+    wire aSnan, aQnan, aInfinity, aZero, aSubnormal, aNormal;
+    wire bSnan, bQnan, bInfinity, bZero, bSubnormal, bNormal;
+
+
+    wire signed [6:0] aExp, bExp;
+    wire [10:0] aSig, bSig;
+
+
+    reg  sSign;
+    reg  signed [6:0] sExp;
+    reg  [10:0] sSig;
+    reg  [15:0] sTmp;
+
+
+    reg [4:0] biasedExp;
+
+
+    reg [10:0] aSigShift, bSigShift;
+    wire signed [6:0] expDiff = aExp - bExp;
+
+
+    hp_class Aclass(
+        .a(a),
+        .snan(aSnan), .qnan(aQnan), .infinity(aInfinity),
+        .zero(aZero), .subnormal(aSubnormal), .normal(aNormal),
+        .exp(aExp), .sig(aSig)
+    );
+
+
+    hp_class Bclass(
+        .a(b),
+        .snan(bSnan), .qnan(bQnan), .infinity(bInfinity),
+        .zero(bZero), .subnormal(bSubnormal), .normal(bNormal),
+        .exp(bExp), .sig(bSig)
+    );
+
+
+    reg signed [11:0] sumSig;
+
+
+    always @(*) begin
+        sTmp = {1'b0, {5{1'b1}}, 1'b1, 9'h2A};
+        {snan, qnan, infinity, zero, subnormal, normal} = 6'b0;
+
+
+        if (aSnan | bSnan) begin
+            sTmp = aSnan ? a : b;
+            snan = 1;
+        end
+        else if (aQnan | bQnan) begin
+            sTmp = aQnan ? a : b;
+            qnan = 1;
+        end
+        else if (aInfinity & bInfinity) begin
+            if (a[15] == b[15]) begin
+                sTmp = a;
+                infinity = 1;
+            end else begin
+                sTmp = {1'b0, 5'b11111, 1'b1, 9'h2A};
+                qnan = 1;
+            end
+        end
+        else if (aInfinity) begin
+            sTmp = a;
+            infinity = 1;
+        end
+        else if (bInfinity) begin
+            sTmp = b;
+            infinity = 1;
+        end
+        else if (aZero & bZero) begin
+            sTmp = 16'h0000;
+            zero = 1;
+        end
+        else begin
+            sSign = (aExp > bExp) ? a[15] : b[15];
+
+
+            if (expDiff >= 0) begin
+                aSigShift = aSig;
+                bSigShift = bSig >> expDiff;
+                sExp      = aExp;
+            end
+            else begin
+                aSigShift = aSig >> (-expDiff);
+                bSigShift = bSig;
+                sExp      = bExp;
+            end
+
+
+            if (a[15] == b[15])
+                sumSig = aSigShift + bSigShift;
+            else
+                sumSig = (aSigShift >= bSigShift) ? (aSigShift - bSigShift) : (bSigShift - aSigShift);
+
+
+            if (sumSig == 0) begin
+                sTmp = {sSign, 15'b0};
+                zero = 1;
+            end
+            else if (sumSig[11]) begin
+                // overflowed, normalize by shifting right by 1 (not 2)
+                sSig = sumSig[11:1];    // <-- shifted by 1, keep 11 bits (leading 1 in bit 10)
+                sExp = sExp + 1;
+                normal = 1;
+                biasedExp = sExp + 15;
+                sTmp = {sSign, biasedExp, sSig[9:0]}; // take lower 10 bits as mantissa
+            end
+            else begin
+                // already normalized: leading 1 is in bit10 of sumSig[10:0]
+                sSig = sumSig[10:0];
+                normal = 1;
+                biasedExp = sExp + 15;
+                sTmp = {sSign, biasedExp, sSig[9:0]};
+            end
+        end
+    end
+    assign s = sTmp;
+endmodule
+
+
+module debounce(
+    input clk,
+    input btn,
+    output reg debounced
+);
+    reg [19:0] count = 0;
+    reg stable = 0;
+
+
+    always @(posedge clk) begin
+        if (btn == stable) begin
+            count <= 0;
+        end else begin
+            count <= count + 1;
+            if (count == 20'd1_000_000) begin
+                stable <= btn;
+                count <= 0;
+            end
+        end
+        debounced <= stable;
+    end
+endmodule
+
+
+
+
+module one_pulse(
+    input clk,
+    input in_sig,
+    output reg out_sig
+);
+    reg prev = 0;
+
+
+    always @(posedge clk) begin
+        out_sig <= in_sig & ~prev;
+        prev <= in_sig;
+    end
+endmodule
+
+
+
+
+module top_fp_display(
+    input clk,               
+    input [15:0] SW,
+
+
+    input BTN_A, // BTNC
+    input BTN_B,   // BTNU
+    input BTN_ADD,  // BTNL
+    input BTN_MUL,   // BTNR
+    input BTN_RESET,   // BTND
+
+
+    output [6:0] seg,
+    output [7:0] AN,
+    output [5:0] LED,
+    output DP
+);
+
+
+      // Debounce + One-Pulse Buttons
+    wire db_A, db_B, db_ADD, db_MUL, db_RESET;
+    wire p_A, p_B, p_ADD, p_MUL, p_RESET;
+
+
+    //debounce module's debounced output is active-low (pressed=0, released 
+    debounce U_DB_A      (clk, BTN_A,   db_A);
+    debounce U_DB_B      (clk, BTN_B,   db_B);
+    debounce U_DB_ADD    (clk, BTN_ADD, db_ADD);
+    debounce U_DB_MUL    (clk, BTN_MUL, db_MUL);
+    debounce U_DB_RESET  (clk, BTN_RESET, db_RESET);
+   
+    one_pulse U_OP_A     (clk, ~BTN_A,    p_A);
+    one_pulse U_OP_B     (clk, ~BTN_B,    p_B);
+    one_pulse U_OP_ADD   (clk, ~BTN_ADD,  p_ADD);
+    one_pulse U_OP_MUL   (clk, ~BTN_MUL,  p_MUL);
+    one_pulse U_OP_RESET (clk, ~BTN_RESET, p_RESET);
+
+
+    reg [15:0] a_reg = 0;
+    reg [15:0] b_reg = 0;
+    
+    reg [15:0] result_fp16 = 0;
+    reg result_valid = 0;
+    reg last_op = 0; // 0 = ADD, 1 = MUL
+    reg [1:0] led_mode = 0; // 0=A, 1=B, 2=RESULT
+
+
+    always @(posedge clk) begin
+        if (p_RESET) begin
+            a_reg <= 0;
+            b_reg <= 0;
+            result_fp16 <= 0;
+            result_valid <= 0;
+            last_op <= 0;
+            led_mode <= 0; // Reset mode
+        end
+        else begin
+            // Input Latching
+            if (p_A) begin
+                a_reg <= SW;
+                led_mode <= 0;
+            end
+            if (p_B) begin
+                b_reg <= SW;
+                led_mode <= 1;
+            end
+            
+            // Result Latching 
+            if (p_ADD) begin
+                result_fp16 <= s_add;
+                result_valid <= 1;
+                last_op <= 0;
+                led_mode <= 2; // Set mode to show Result
+            end
+            if (p_MUL) begin
+                result_fp16 <= p_mul;
+                result_valid <= 1;
+                last_op <= 1;
+                led_mode <= 2; // Set mode to show Result
+            end
+        end
+    end
+    
+    wire [15:0] p_mul, s_add;
+    wire snan_mul, qnan_mul, infinity_mul, zero_mul, subnormal_mul, normal_mul;
+    wire snan_add, qnan_add, infinity_add, zero_add, subnormal_add, normal_add;
+
+
+    hp_mul U_MUL(
+        .a(a_reg), .b(b_reg), .p(p_mul),
+        .snan(snan_mul), .qnan(qnan_mul),
+        .infinity(infinity_mul), .zero(zero_mul),
+        .subnormal(subnormal_mul), .normal(normal_mul)
+    );
+
+
+
+
+    hp_add U_ADD(
+        .a(a_reg), .b(b_reg), .s(s_add),
+        .snan(snan_add), .qnan(qnan_add),
+        .infinity(infinity_add), .zero(zero_add),
+        .subnormal(subnormal_add), .normal(normal_add)
+    );
+
+
+
+
+    wire aSnan,aQnan,aInfinity,aZero,aSubnormal,aNormal;
+    wire bSnan,bQnan,bInfinity,bZero,bSubnormal,bNormal;
+    // Dummy wires to explicitly connect unused outputs (best practice)
+    wire signed [6:0] dummy_exp;
+    wire [10:0] dummy_sig;
+
+
+    hp_class CLASS_A(
+        .a(a_reg),
+        .snan(aSnan), .qnan(aQnan), .infinity(aInfinity),
+        .zero(aZero), .subnormal(aSubnormal), .normal(aNormal),
+        .exp(dummy_exp), .sig(dummy_sig)
+    );
+
+
+    hp_class CLASS_B(
+        .a(b_reg),
+        .snan(bSnan), .qnan(bQnan), .infinity(bInfinity),
+        .zero(bZero), .subnormal(bSubnormal), .normal(bNormal),
+        .exp(dummy_exp), .sig(dummy_sig)
+    );
+
+
+    // FIXED LED ASSIGNMENT FOR TYPE OF NUMBER
+    assign LED =
+        (led_mode == 0) ? {aSnan,aQnan,aInfinity,aZero,aSubnormal,aNormal} :
+        (led_mode == 1) ? {bSnan,bQnan,bInfinity,bZero,bSubnormal,bNormal} :
+        (led_mode == 2) ? 
+            (last_op == 0) ? 
+                {snan_add,qnan_add,infinity_add,zero_add,subnormal_add,normal_add} : // Result of ADD
+                {snan_mul,qnan_mul,infinity_mul,zero_mul,subnormal_mul,normal_mul} : // Result of MUL
+        6'b000000;
+
+
+    // Display (shows zero until result_valid = 1)
+        wire [31:0] display_value =
+        result_valid ? {16'b0, result_fp16} : 32'h00000000;
+
+
+    display32_hex U_DISPLAY(
+        .clk(clk),
+        .value(display_value),
+        .seg(seg),
+        .AN(AN),
+        .DP(DP)
+    );
+
+
+endmodule
