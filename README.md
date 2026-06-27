@@ -1,7 +1,5 @@
 IEEE-754 FP16 Floating-Point Adder & Multiplier on FPGA
 
-Overview
-
 This project implements an IEEE-754 Half-Precision (FP16) Floating-Point Arithmetic Unit using Verilog HDL and deploys it on an FPGA development board. The design supports both floating-point addition and multiplication while handling IEEE-754 special cases such as NaN, Infinity, Zero, Subnormal, and Normal numbers.
 
 The system allows users to enter operands using hardware switches, select arithmetic operations through push buttons, and display the computed FP16 result on an 8-digit seven-segment display. Button presses are synchronized using hardware debouncing and one-pulse generation to ensure reliable operation.
@@ -34,15 +32,13 @@ C. Project Modules
 - Interfaces with display hardware
 
 2) hp_class
-- FP16 classifier responsible for
-- Extracting sign, exponent, and mantissa
-- Detecting whether its Zero , Subnormal , Normal , Infinity or NaN.
+- FP16 classifier responsible for extracting sign, exponent, and mantissa
+- Detecting whether its Zero , Subnormal , Normal , Infinity or NaN
 - Adding the hidden leading bit for normalized numbers
 - Providing classification information to arithmetic units
 
 3) hp_add
-- Implements IEEE-754 FP16 addition.
-- Features include:
+- Implements IEEE-754 FP16 addition
 - Exponent comparison
 - Mantissa alignment
 - Signed addition/subtraction
@@ -52,8 +48,7 @@ C. Project Modules
 - IEEE-754 compliant result packing
 
 4) hp_mul
-- Implements IEEE-754 FP16 multiplication.
-- Features include:
+- Implements IEEE-754 FP16 multiplication
 - 11 × 11-bit significand multiplication
 - Exponent addition with bias correction
 - Product normalization
@@ -69,7 +64,7 @@ C. Project Modules
 7) display32_hex
 - Drives the 8-digit seven-segment display
 - Time-multiplexed display control
-- Displays the lower 16 bits as the FP16 result in hexadecimal format
+- Displays the FP16 result in hexadecimal format
 
 D. Technologies Used
 1) Verilog HDL
@@ -79,26 +74,21 @@ D. Technologies Used
 5) Seven-Segment Display Interface
 
 E. Future Improvements
-Support for FP32 arithmetic
-Floating-point subtraction module
-Fused Multiply-Add (FMA)
-IEEE-754 rounding modes
-Division and square-root operations
-Pipelined architecture for higher throughput
-Comprehensive verification testbench with corner-case coverage
+- Support for FP32 arithmetic
+- Floating-point subtraction module
+- Fused Multiply-Add (FMA)
+- IEEE-754 rounding modes
+- Division and square-root operations
+- Pipelined architecture for higher throughput
+- Comprehensive verification testbench with corner-case coverage
 
 F. Learning Outcomes
 This project provided practical experience in:
-IEEE-754 floating-point arithmetic
-Hardware implementation of arithmetic units
-Verilog HDL design methodology
-FPGA prototyping
-Modular digital system design
-Exception handling in floating-point computation
-Hardware debugging and verification
+- IEEE-754 floating-point arithmetic
+- Hardware implementation of arithmetic units
+- Verilog HDL design methodology
+- FPGA prototyping
+- Modular digital system design
+- Exception handling in floating-point computation
+- Hardware debugging and verification
 
-G. Authors
-Aasha Chanpa
-B.Tech Electronics Engineering
-Astha Patel
-B.Tech Electronics Engineering
