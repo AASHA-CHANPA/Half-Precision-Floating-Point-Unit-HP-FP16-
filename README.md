@@ -82,13 +82,4 @@ E. Future Improvements
 - Pipelined architecture for higher throughput
 - Comprehensive verification testbench with corner-case coverage
 
-F. Learning Outcomes
-This project provided practical experience in:
-- IEEE-754 floating-point arithmetic
-- Hardware implementation of arithmetic units
-- Verilog HDL design methodology
-- FPGA prototyping
-- Modular digital system design
-- Exception handling in floating-point computation
-- Hardware debugging and verification
 
