@@ -40,61 +40,6 @@ Positive and Negative Zero
 Positive and Negative Infinity
 Quiet and Signaling NaN
 
-Hardware Architecture
-
-               +------------------+
-               
-               | 16-bit Switches  |
-               
-               +--------+---------+
-               
-                        |
-                        
-                Debounce + One Pulse
-                
-                        |
-                        
-               +--------v---------+
-               
-               | Control Logic    |
-               
-               +--------+---------+
-               
-                        |
-                        
-        +---------------+---------------+
-        
-        |                               |
-        
-+-------v--------+             +--------v-------+
-
-| FP16 Adder     |             | FP16 Multiplier|
-
-+-------+--------+             +--------+-------+
-
-        |                               |
-        
-        +---------------+---------------+
-        
-                        |
-                        
-               +--------v---------+
-               
-               | Result Register  |
-               
-               +--------+---------+
-               
-                        |
-                        
-               +--------v---------+
-               
-               | Seven-Segment    |
-               
-               | Display Driver   |
-               
-               +------------------+
-               
-
 
 Project Modules
 top_fp_display
@@ -164,18 +109,28 @@ Digital Logic Design
 Seven-Segment Display Interface
 
 Repository Structure
-├── top_fp_display.v
-├── hp_add.v
-├── hp_mul.v
-├── hp_class.v
-├── debounce.v
-├── one_pulse.v
-├── display32_hex.v
-├── constraints/
-├── simulation/
-├── images/
-└── README.md
 
+├── top_fp_display.v
+
+├── hp_add.v
+
+├── hp_mul.v
+
+├── hp_class.v
+
+├── debounce.v
+
+├── one_pulse.v
+
+├── display32_hex.v
+
+├── constraints/
+
+├── simulation/
+
+├── images/
+
+└── README.md
 
 Future Improvements
 Support for FP32 arithmetic
