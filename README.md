@@ -41,6 +41,7 @@ Positive and Negative Infinity
 Quiet and Signaling NaN
 
 Hardware Architecture
+
                +------------------+
                
                | 16-bit Switches  |
@@ -60,22 +61,39 @@ Hardware Architecture
                +--------+---------+
                
                         |
+                        
         +---------------+---------------+
+        
         |                               |
+        
 +-------v--------+             +--------v-------+
+
 | FP16 Adder     |             | FP16 Multiplier|
+
 +-------+--------+             +--------+-------+
+
         |                               |
+        
         +---------------+---------------+
+        
                         |
+                        
                +--------v---------+
+               
                | Result Register  |
+               
                +--------+---------+
+               
                         |
+                        
                +--------v---------+
+               
                | Seven-Segment    |
+               
                | Display Driver   |
+               
                +------------------+
+               
 
 
 Project Modules
