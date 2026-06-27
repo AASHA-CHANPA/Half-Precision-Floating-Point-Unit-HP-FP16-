@@ -41,15 +41,24 @@ Positive and Negative Infinity
 Quiet and Signaling NaN
 
 Hardware Architecture
-              +------------------+
+               +------------------+
+               
                | 16-bit Switches  |
+               
                +--------+---------+
+               
                         |
+                        
                 Debounce + One Pulse
+                
                         |
+                        
                +--------v---------+
+               
                | Control Logic    |
+               
                +--------+---------+
+               
                         |
         +---------------+---------------+
         |                               |
